@@ -33,7 +33,7 @@ Powered by any OpenAI-compatible LLM endpoint (such as local models via [Ollama]
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/tranz.git
+git clone https://github.com/activebook/tranz.git
 cd tranz
 
 # Compile release binary and assemble .app bundle
