@@ -1,0 +1,24 @@
+# Xcode & Swift Package Manager
+.build/
+build/
+*.xcodeproj/
+*.xcworkspace/
+.swiftpm/
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Internal design & planning documents
+goal/
+
+# IDE & Editor configuration
+.workbuddy/
+.idea/
+.vscode/
+*.swp
+*~
