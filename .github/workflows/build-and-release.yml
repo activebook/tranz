@@ -8,6 +8,17 @@ on:
       - 'README.md'
       - 'LICENSE'
       - 'goal/**'
+      - 'snapshot/**'
+      - '**.md'
+      - '.gitignore'
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'goal/**'
+      - 'snapshot/**'
       - '**.md'
       - '.gitignore'
   workflow_dispatch:
@@ -19,7 +30,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: write
@@ -64,8 +75,15 @@ jobs:
             echo "Incrementing patch from ${LATEST_TAG} -> ${NEW_TAG}"
           fi
           
-          echo "RELEASE_TAG=${NEW_TAG}" >> $GITHUB_ENV
-          echo "tag=${NEW_TAG}" >> $GITHUB_OUTPUT
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_TAG="${NEW_TAG}-pr.${{ github.event.pull_request.number }}"
+            echo "PR #${{ github.event.pull_request.number }} build candidate version: ${PR_TAG}"
+            echo "RELEASE_TAG=${PR_TAG}" >> $GITHUB_ENV
+            echo "tag=${PR_TAG}" >> $GITHUB_OUTPUT
+          else
+            echo "RELEASE_TAG=${NEW_TAG}" >> $GITHUB_ENV
+            echo "tag=${NEW_TAG}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Verify Toolchain
         run: |
@@ -92,7 +110,17 @@ jobs:
           shasum -a 256 "Tranz-macOS.zip" > "Tranz-macOS.zip.sha256"
           echo "SHA256: $(cat Tranz-macOS.zip.sha256)"
 
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tranz-macOS-${{ env.RELEASE_TAG }}
+          path: |
+            build/Tranz-macOS.zip
+            build/Tranz-macOS.zip.sha256
+          retention-days: 14
+
       - name: Create and Push Git Tag
+        if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -100,6 +128,7 @@ jobs:
           git push origin "${{ env.RELEASE_TAG }}"
 
       - name: Publish GitHub Release
+        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
