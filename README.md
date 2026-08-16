@@ -16,6 +16,39 @@ Powered by any OpenAI-compatible LLM endpoint (such as local models via [Ollama]
 
 ---
 
+## How It Works
+
+Tranz operates directly within your active input field, eliminating the need for context-switching or external translation tools:
+
+### 1. In-Place Text Replacement
+
+| 1. Enter Original Text | 2. Trigger In-Place Translation (`⌥T`) |
+| :---: | :---: |
+| <img src="snapshot/eng_input.png" alt="English Input in Search Bar" width="400" /> | <img src="snapshot/jap_input.png" alt="Japanese Translation In-Place" width="400" /> |
+| *Type text in any search bar or input field.* | *Press the shortcut to replace text in-place.* |
+
+### 2. Search & Workflow Continuity
+
+<p align="center">
+  <img src="snapshot/jap_result.png" alt="Search Result with Translated Japanese" width="680" />
+</p>
+<p align="center">
+  <em>Execute queries or send messages seamlessly using the translated output.</em>
+</p>
+
+---
+
+## Settings & Customization
+
+Easily configure translation targets and keybindings to match your personal productivity workflow:
+
+| Target Language Selection | Global Shortcut Configuration |
+| :---: | :---: |
+| <img src="snapshot/lang_select.png" alt="Target Language Selection" width="380" /> | <img src="snapshot/key_trigger.png" alt="Shortcut Trigger Customization" width="380" /> |
+| *Select from a broad range of target languages.* | *Rebind the global hotkey to your preferred keystroke.* |
+
+---
+
 ## Features
 
 * **Universal In-Place Translation**: Focus on any editable text field in any macOS app, press your shortcut, and translate text directly in-place.
@@ -73,3 +106,4 @@ open build/Tranz.app
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
