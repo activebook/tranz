@@ -1,0 +1,112 @@
+name: CI & Automated Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'goal/**'
+      - '**.md'
+      - '.gitignore'
+  workflow_dispatch:
+    inputs:
+      custom_tag:
+        description: 'Optional manual tag override (e.g. v2.0.0 or v3.0.0)'
+        required: false
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build, Package & Publish Release
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Source Code (Full History & Tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Next Semantic Version Tag
+        id: versioning
+        run: |
+          git fetch --tags --force
+          
+          # Find latest existing semver tag matching v*
+          LATEST_TAG=$(git tag -l "v*" | sort -V | tail -n 1)
+          echo "Latest tag on remote: '${LATEST_TAG}'"
+          
+          if [ -n "${{ github.event.inputs.custom_tag }}" ]; then
+            NEW_TAG="${{ github.event.inputs.custom_tag }}"
+            echo "Using manual input tag: $NEW_TAG"
+          elif [ -z "$LATEST_TAG" ]; then
+            NEW_TAG="v1.0.0"
+            echo "No prior tags found. Initializing baseline tag: $NEW_TAG"
+          else
+            CLEAN_TAG="${LATEST_TAG#v}"
+            # Split by '.' into major, minor, patch
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CLEAN_TAG"
+            MAJOR="${MAJOR:-1}"
+            MINOR="${MINOR:-0}"
+            PATCH="${PATCH:-0}"
+            
+            # Increment patch counter
+            NEW_PATCH=$((PATCH + 1))
+            NEW_TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+            echo "Incrementing patch from ${LATEST_TAG} -> ${NEW_TAG}"
+          fi
+          
+          echo "RELEASE_TAG=${NEW_TAG}" >> $GITHUB_ENV
+          echo "tag=${NEW_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Verify Toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Build and Assemble App Bundle
+        run: |
+          chmod +x scripts/build-app.sh
+          ./scripts/build-app.sh
+
+      - name: Validate App Bundle & Signature
+        run: |
+          test -d "build/Tranz.app"
+          test -f "build/Tranz.app/Contents/MacOS/Tranz"
+          test -f "build/Tranz.app/Contents/Resources/AppIcon.icns"
+          codesign --verify --deep --strict --verbose=2 build/Tranz.app
+
+      - name: Create Distributable Archive
+        run: |
+          cd build
+          # Use ditto to preserve macOS metadata, code signatures, and file permissions
+          ditto -c -k --keepParent "Tranz.app" "Tranz-macOS.zip"
+          shasum -a 256 "Tranz-macOS.zip" > "Tranz-macOS.zip.sha256"
+          echo "SHA256: $(cat Tranz-macOS.zip.sha256)"
+
+      - name: Create and Push Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ env.RELEASE_TAG }}" -m "Release ${{ env.RELEASE_TAG }}"
+          git push origin "${{ env.RELEASE_TAG }}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Tranz ${{ env.RELEASE_TAG }}
+          files: |
+            build/Tranz-macOS.zip
+            build/Tranz-macOS.zip.sha256
+          draft: false
+          prerelease: false
+          generate_release_notes: true
