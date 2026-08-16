@@ -260,13 +260,13 @@ struct SettingsView: View {
     /// 4. Permissions & System Access Pane
     private var permissionsPane: some View {
         VStack(alignment: .leading, spacing: 16) {
-            settingsCard(title: "macOS Accessibility (TCC)", icon: "lock.shield.fill") {
+            settingsCard(title: "Accessibility Access", icon: "lock.shield.fill") {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text("Accessibility Permission")
                                 .font(.system(size: 12, weight: .medium))
-                            Text("Enables synthetic keystrokes (Cmd+A / Cmd+C / Cmd+V)")
+                            Text("Allows Tranz to read and replace text directly in active applications")
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                         }
