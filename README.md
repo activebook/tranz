@@ -5,58 +5,60 @@
 </p>
 
 <p align="center">
-  <strong>Instant in-place text translation for any macOS application.</strong>
+  <strong>In-place text translation for macOS.</strong>
 </p>
 
 ---
 
-**Tranz** is a lightweight, native macOS menu bar utility that translates the active text input in **any** application—browsers, native apps, Electron apps, or text editors—and replaces it in-place with a single keyboard shortcut.
+**Tranz** is a macOS menu bar utility that translates text in the active input field of any app and replaces it in-place using a global keyboard shortcut.
 
-Powered by any OpenAI-compatible LLM endpoint (such as local models via [Ollama](https://ollama.com) or cloud providers), Tranz preserves your clipboard history and works seamlessly without disrupting your workflow.
+It connects to any OpenAI-compatible `/chat/completions` endpoint (such as local models via [Ollama](https://ollama.com) or cloud providers) and preserves your clipboard contents during translation.
 
 ---
 
 ## How It Works
 
-Tranz operates directly within your active input field, eliminating the need for context-switching or external translation tools:
+Tranz operates directly within the focused input field:
 
 ### 1. In-Place Text Replacement
 
-| 1. Enter Original Text | 2. Trigger In-Place Translation (`⌥T`) |
+| 1. Original Text | 2. In-Place Translation (`⌥T`) |
 | :---: | :---: |
 | <img src="snapshot/eng_input.png" alt="English Input in Search Bar" width="400" /> | <img src="snapshot/jap_input.png" alt="Japanese Translation In-Place" width="400" /> |
-| *Type text in any search bar or input field.* | *Press the shortcut to replace text in-place.* |
+| *Type in any input field.* | *Press the shortcut to replace with translation.* |
 
-### 2. Search & Workflow Continuity
+### 2. Output & Continuity
 
 <p align="center">
   <img src="snapshot/jap_result.png" alt="Search Result with Translated Japanese" width="680" />
 </p>
 <p align="center">
-  <em>Execute queries or send messages seamlessly using the translated output.</em>
+  <em>Proceed with queries or messages using the translated text.</em>
 </p>
 
 ---
 
-## Settings & Customization
+## Settings
 
-Easily configure translation targets and keybindings to match your personal productivity workflow:
+Configure endpoints, language targets, and shortcuts:
 
 | Target Language Selection | Global Shortcut Configuration |
 | :---: | :---: |
 | <img src="snapshot/lang_select.png" alt="Target Language Selection" width="380" /> | <img src="snapshot/key_trigger.png" alt="Shortcut Trigger Customization" width="380" /> |
-| *Select from a broad range of target languages.* | *Rebind the global hotkey to your preferred keystroke.* |
+| *Select the default target language.* | *Record a custom global shortcut.* |
 
 ---
 
 ## Features
 
-* **Universal In-Place Translation**: Focus on any editable text field in any macOS app, press your shortcut, and translate text directly in-place.
-* **Privacy-First and Self-Hostable**: Works out of the box with local AI endpoints (Ollama, LM Studio, vLLM) or remote providers (OpenAI, DeepSeek, Groq).
-* **Keychain Encryption**: API keys are securely stored in the native macOS Keychain—never in plaintext files.
-* **Non-Destructive Clipboard**: Your existing clipboard content is automatically preserved and restored before and after translation.
-* **Customizable Global Hotkey**: Trigger translation anywhere with a rebindable shortcut (default: `Option+T` / `⌥T`).
-* **Smart Language Detection**: Auto-detects the source language or allows fixed source-to-target language pairs.
+* **In-Place Replacement**: Replaces text directly inside the focused field via global shortcut (default: `Option+T` / `⌥T`).
+* **OpenAI-Compatible Backends**: Works with local servers (Ollama, LM Studio, vLLM) and cloud providers.
+* **Multi-Service Profiles**: Save multiple endpoints and switch active models from the menu bar.
+* **Non-Destructive Clipboard**: Automatically preserves and restores pasteboard contents before and after translation.
+* **Keychain Storage**: API keys are stored securely in macOS Keychain.
+* **Rebindable Shortcut**: Easily record and rebind the global trigger keystroke.
+* **Launch at Login**: Optional setting to start Tranz automatically on login.
+* **Language Detection**: Auto-detects input language or uses fixed source/target pairs.
 
 ---
 
@@ -82,7 +84,7 @@ open build/Tranz.app
 2. **Configure AI Service**: Click the Tranz icon in your menu bar and select **Settings…**:
    * **Endpoint URL**: e.g., `http://localhost:11434/v1` (for Ollama) or `https://api.openai.com/v1`
    * **API Key**: Optional for local models; securely stored in Keychain for cloud services.
-   * **Model**: e.g., `qwen2.5`, `llama3.1`, `gpt-4o-mini`, `gemini-2.5-flash`
+   * **Model**: e.g., `qwen3.6`, `gemma4`, `gpt-5.6-terra`, `claude-sonnet-5`
    * **Target Language**: Choose your preferred destination language.
 
 ---

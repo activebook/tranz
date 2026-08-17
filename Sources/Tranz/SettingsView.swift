@@ -5,7 +5,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     case service = "AI Service"
     case languages = "Languages"
     case shortcuts = "Shortcuts"
-    case permissions = "Permissions"
+    case permissions = "System"
 
     var id: String { rawValue }
 
@@ -14,7 +14,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .service: return "cpu"
         case .languages: return "character.bubble"
         case .shortcuts: return "keyboard"
-        case .permissions: return "lock.shield"
+        case .permissions: return "gearshape.2"
         }
     }
 }
@@ -30,6 +30,7 @@ struct SettingsView: View {
     @State private var editedApiKey: String = ""
     @State private var showApiKey: Bool = false
     @State private var isAccessibilityGranted: Bool = AccessibilityPermissionCoordinator.shared.isTrusted
+    @ObservedObject private var launchCoordinator = LaunchAtLoginCoordinator.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -52,7 +53,7 @@ struct SettingsView: View {
                     case .shortcuts:
                         shortcutsPane
                     case .permissions:
-                        permissionsPane
+                        systemPane
                     }
                 }
                 .padding(20)
@@ -62,9 +63,11 @@ struct SettingsView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             syncEditingEndpoint()
+            launchCoordinator.refreshStatus()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             isAccessibilityGranted = AccessibilityPermissionCoordinator.shared.isTrusted
+            launchCoordinator.refreshStatus()
         }
     }
 
@@ -176,7 +179,7 @@ struct SettingsView: View {
                             Text("Model Identifier")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.secondary)
-                            TextField("e.g. qwen2.5:7b, gpt-4o-mini, deepseek-chat", text: $editedModel)
+                            TextField("e.g. qwen3.6, gemma4, gpt-5.6-terra, claude-sonnet-5", text: $editedModel)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(size: 12))
                                 .onChange(of: editedModel) { _ in persistCurrentEdit() }
@@ -322,7 +325,7 @@ struct SettingsView: View {
     }
 
     private func addNewEndpoint() {
-        let newEndpoint = AIEndpoint(baseURL: "http://localhost:11434/v1", model: "qwen2.5:7b")
+        let newEndpoint = AIEndpoint(baseURL: "http://localhost:11434/v1", model: "qwen3.6")
         settings.addEndpoint(newEndpoint)
         selectForEdit(newEndpoint)
     }
@@ -432,9 +435,69 @@ struct SettingsView: View {
         }
     }
 
-    /// 4. Permissions & System Access Pane
-    private var permissionsPane: some View {
+    /// 4. System Integration & Permissions Pane
+    private var systemPane: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Launch at Login Card
+            settingsCard(title: "Startup Behavior", icon: "power") {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Launch at Login")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Automatically start Tranz in the background when you log in")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Toggle("", isOn: Binding(
+                            get: { launchCoordinator.isEnabled },
+                            set: { newValue in
+                                _ = launchCoordinator.setLaunchAtLogin(enabled: newValue)
+                            }
+                        ))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                    }
+
+                    Divider()
+
+                    HStack {
+                        // Status Badge
+                        HStack(spacing: 5) {
+                            let status = launchCoordinator.status
+                            Image(systemName: status == .enabled ? "checkmark.circle.fill" : (status == .requiresApproval ? "exclamationmark.triangle.fill" : "circle"))
+                                .foregroundColor(status == .enabled ? .green : (status == .requiresApproval ? .orange : .secondary))
+                            Text(status == .enabled ? "Enabled" : (status == .requiresApproval ? "Approval Required" : "Disabled"))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(status == .enabled ? .green : (status == .requiresApproval ? .orange : .secondary))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            (launchCoordinator.status == .enabled ? Color.green : (launchCoordinator.status == .requiresApproval ? Color.orange : Color.secondary))
+                                .opacity(0.12)
+                        )
+                        .cornerRadius(6)
+
+                        Spacer()
+
+                        Button(action: {
+                            launchCoordinator.openLoginItemsSettings()
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.up.forward.app")
+                                Text("Login Items Settings…")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+            }
+
+            // Accessibility Permission Card
             settingsCard(title: "Accessibility Access", icon: "lock.shield.fill") {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
