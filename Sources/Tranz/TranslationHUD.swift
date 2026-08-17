@@ -30,6 +30,7 @@ struct TranslationHUDView: View {
                 Text(targetLanguage.isEmpty ? "Translating…" : "Translating to \(targetLanguage)…")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.primary)
+                    .fixedSize(horizontal: true, vertical: false)
 
             case .success(let message):
                 Image(systemName: "checkmark.circle.fill")
@@ -39,6 +40,7 @@ struct TranslationHUDView: View {
                 Text(message)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.primary)
+                    .fixedSize(horizontal: true, vertical: false)
 
             case .error(let message):
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -48,7 +50,7 @@ struct TranslationHUDView: View {
                 Text(message)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.primary)
-                    .lineLimit(2)
+                    .fixedSize(horizontal: true, vertical: false)
 
             case .info(let message):
                 Image(systemName: "info.circle.fill")
@@ -58,14 +60,15 @@ struct TranslationHUDView: View {
                 Text(message)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.primary)
-                    .lineLimit(2)
+                    .fixedSize(horizontal: true, vertical: false)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
+        .fixedSize()
         .background(
             Capsule()
-                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.92))
+                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.94))
         )
         .overlay(
             Capsule()
@@ -203,11 +206,14 @@ final class TranslationHUD {
         let p = ensurePanelCreated()
         guard let hostingView = p.contentView as? NSHostingView<TranslationHUDView> else { return }
 
-        // Recalculate fitting size for dynamic content
+        // Ensure SwiftUI root view reflects the latest state and force immediate layout pass
+        hostingView.rootView = TranslationHUDView(viewModel: viewModel)
+        hostingView.layoutSubtreeIfNeeded()
+
         let fittingSize = hostingView.fittingSize
         let finalSize = NSSize(
-            width: max(fittingSize.width + 8, 140),
-            height: max(fittingSize.height + 4, 38)
+            width: max(fittingSize.width + 16, 170),
+            height: max(fittingSize.height + 8, 38)
         )
         p.setContentSize(finalSize)
 
