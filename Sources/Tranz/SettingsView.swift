@@ -25,7 +25,6 @@ struct SettingsView: View {
 
     @State private var selectedTab: SettingsTab = .service
     @State private var editingEndpointID: UUID?
-    @State private var editedName: String = ""
     @State private var editedURL: String = ""
     @State private var editedModel: String = ""
     @State private var editedApiKey: String = ""
@@ -100,7 +99,7 @@ struct SettingsView: View {
     private var servicePane: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Endpoint List Selector Card
-            settingsCard(title: "Configured AI Services", icon: "server.rack") {
+            settingsCard(title: "Configured AI Endpoints", icon: "server.rack") {
                 VStack(spacing: 8) {
                     ForEach(settings.endpoints) { endpoint in
                         endpointRow(endpoint)
@@ -109,34 +108,16 @@ struct SettingsView: View {
                     Divider()
                         .padding(.vertical, 2)
 
-                    // Toolbar actions: Add Preset Menu
+                    // Toolbar actions: Add Endpoint Button
                     HStack {
-                        Menu {
-                            Button("Ollama (Local Qwen 2.5)") {
-                                addPreset(AIEndpoint.ollamaPreset)
-                            }
-                            Button("OpenAI (GPT-4o mini)") {
-                                addPreset(AIEndpoint.openAIPreset)
-                            }
-                            Button("DeepSeek (DeepSeek V3)") {
-                                addPreset(AIEndpoint.deepSeekPreset)
-                            }
-                            Button("Groq (Llama 3.3 70B)") {
-                                addPreset(AIEndpoint.groqPreset)
-                            }
-                            Divider()
-                            Button("Custom Endpoint…") {
-                                addPreset(AIEndpoint.customPreset)
-                            }
-                        } label: {
+                        Button(action: addNewEndpoint) {
                             HStack(spacing: 4) {
                                 Image(systemName: "plus.circle.fill")
-                                Text("Add Service…")
+                                Text("Add Endpoint")
                             }
                             .font(.system(size: 11, weight: .medium))
                         }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
+                        .buttonStyle(.borderless)
 
                         Spacer()
                     }
@@ -146,19 +127,8 @@ struct SettingsView: View {
             // Profile Detail Editor Card
             if let currentID = editingEndpointID,
                let endpoint = settings.endpoints.first(where: { $0.id == currentID }) {
-                settingsCard(title: "Configure: \(endpoint.name)", icon: "slider.horizontal.3") {
+                settingsCard(title: "Configure: \(endpoint.displayName)", icon: "slider.horizontal.3") {
                     VStack(spacing: 12) {
-                        // Profile Name
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Service Name")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
-                            TextField("e.g. Ollama Qwen, DeepSeek", text: $editedName)
-                                .textFieldStyle(.roundedBorder)
-                                .font(.system(size: 12))
-                                .onChange(of: editedName) { _ in persistCurrentEdit() }
-                        }
-
                         // Endpoint URL
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Endpoint Base URL")
@@ -260,7 +230,7 @@ struct SettingsView: View {
             // Informational Note
             infoBanner(
                 icon: "lock.shield",
-                text: "API keys are securely isolated in the macOS Keychain for each profile. Switch active services anytime here or from the Menu Bar."
+                text: "API keys are securely isolated in the macOS Keychain for each endpoint. Switch active services anytime here or from the Menu Bar."
             )
         }
     }
@@ -284,15 +254,9 @@ struct SettingsView: View {
             // Endpoint details
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(endpoint.name)
+                    Text(endpoint.displayName)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.primary)
-
-                    Text(endpoint.model)
-                        .font(.system(size: 10, design: .monospaced))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Color.secondary.opacity(0.12)))
 
                     if isActive {
                         Text("ACTIVE")
@@ -336,7 +300,6 @@ struct SettingsView: View {
 
     private func selectForEdit(_ endpoint: AIEndpoint) {
         editingEndpointID = endpoint.id
-        editedName = endpoint.name
         editedURL = endpoint.baseURL
         editedModel = endpoint.model
         editedApiKey = settings.apiKey(for: endpoint.id)
@@ -352,20 +315,14 @@ struct SettingsView: View {
         guard let id = editingEndpointID else { return }
         let updated = AIEndpoint(
             id: id,
-            name: editedName.trimmingCharacters(in: .whitespaces),
             baseURL: editedURL.trimmingCharacters(in: .whitespaces),
             model: editedModel.trimmingCharacters(in: .whitespaces)
         )
         settings.updateEndpoint(updated, apiKey: editedApiKey)
     }
 
-    private func addPreset(_ preset: AIEndpoint) {
-        var newEndpoint = preset
-        newEndpoint.id = UUID()
-        let existingNames = settings.endpoints.map { $0.name }
-        if existingNames.contains(newEndpoint.name) {
-            newEndpoint.name = "\(newEndpoint.name) (\(settings.endpoints.count + 1))"
-        }
+    private func addNewEndpoint() {
+        let newEndpoint = AIEndpoint(baseURL: "http://localhost:11434/v1", model: "qwen2.5:7b")
         settings.addEndpoint(newEndpoint)
         selectForEdit(newEndpoint)
     }

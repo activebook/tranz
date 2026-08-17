@@ -171,7 +171,7 @@ extension AppDelegate: NSMenuDelegate {
 
             for endpoint in endpoints {
                 let item = NSMenuItem(
-                    title: "\(endpoint.name) (\(endpoint.model))",
+                    title: endpoint.displayName,
                     action: #selector(didSelectEndpointMenuItem(_:)),
                     keyEquivalent: ""
                 )

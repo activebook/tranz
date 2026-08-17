@@ -95,7 +95,6 @@ final class AppSettings: ObservableObject {
             // Migrate legacy single endpoint
             let legacyModel = defaults.string(forKey: Keys.legacyModel) ?? "qwen2.5:7b"
             let initial = AIEndpoint(
-                name: "Primary Service",
                 baseURL: legacyURL,
                 model: legacyModel
             )
@@ -111,14 +110,14 @@ final class AppSettings: ObservableObject {
             }
             defaults.set(initial.id.uuidString, forKey: Keys.selectedEndpointID)
         } else {
-            // Default presets for initial installation
-            let presets = AIEndpoint.defaultPresets
-            endpoints = presets
-            selectedEndpointID = presets[0].id
-            if let data = try? JSONEncoder().encode(presets) {
+            // Default initial installation
+            let initial = [AIEndpoint.defaultEndpoint]
+            endpoints = initial
+            selectedEndpointID = initial[0].id
+            if let data = try? JSONEncoder().encode(initial) {
                 defaults.set(data, forKey: Keys.endpoints)
             }
-            defaults.set(presets[0].id.uuidString, forKey: Keys.selectedEndpointID)
+            defaults.set(initial[0].id.uuidString, forKey: Keys.selectedEndpointID)
         }
     }
 
@@ -129,7 +128,7 @@ final class AppSettings: ObservableObject {
     }
 
     var translatorConfig: TranslatorConfig {
-        let ep = activeEndpoint ?? AIEndpoint.ollamaPreset
+        let ep = activeEndpoint ?? AIEndpoint.defaultEndpoint
         let key = apiKey(for: ep.id)
         return TranslatorConfig(
             baseURL: ep.baseURL,
