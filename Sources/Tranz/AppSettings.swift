@@ -93,7 +93,7 @@ final class AppSettings: ObservableObject {
         } else if let legacyURL = defaults.string(forKey: Keys.legacyEndpoint),
                   !legacyURL.isEmpty {
             // Migrate legacy single endpoint
-            let legacyModel = defaults.string(forKey: Keys.legacyModel) ?? "qwen2.5:7b"
+            let legacyModel = defaults.string(forKey: Keys.legacyModel) ?? "qwen3.6"
             let initial = AIEndpoint(
                 baseURL: legacyURL,
                 model: legacyModel

@@ -6,14 +6,14 @@ struct AIEndpoint: Identifiable, Codable, Hashable, Equatable {
     var baseURL: String
     var model: String
 
-    init(id: UUID = UUID(), baseURL: String = "http://localhost:11434/v1", model: String = "qwen2.5:7b") {
+    init(id: UUID = UUID(), baseURL: String = "http://localhost:11434/v1", model: String = "qwen3.6") {
         self.id = id
         self.baseURL = baseURL
         self.model = model
     }
 
     /// Automatically formats a clean, concise service identifier from the domain and model name.
-    /// Examples: `localhost:gemini`, `groq:qwen2.6`, `openai:gpt5.5-nano`, `deepseek:deepseek-chat`
+    /// Examples: `localhost:qwen3.6`, `groq:llama4`, `openai:gpt-5.6-terra`, `anthropic:claude-sonnet-5`
     var displayName: String {
         let domain: String
         let trimmedURL = baseURL.trimmingCharacters(in: .whitespaces)
@@ -42,6 +42,6 @@ struct AIEndpoint: Identifiable, Codable, Hashable, Equatable {
     }
 
     static var defaultEndpoint: AIEndpoint {
-        AIEndpoint(baseURL: "http://localhost:11434/v1", model: "qwen2.5:7b")
+        AIEndpoint(baseURL: "http://localhost:11434/v1", model: "qwen3.6")
     }
 }
