@@ -6,12 +6,13 @@ final class KeychainVault {
     static let shared = KeychainVault()
 
     private let service = "com.tranz.app"
-    private let account = "api-key"
+    private let defaultAccount = "api-key"
 
     private init() {}
 
     @discardableResult
-    func save(_ value: String) -> Bool {
+    func save(_ value: String, for accountKey: String = "api-key") -> Bool {
+        let account = accountKey.isEmpty ? defaultAccount : accountKey
         let data = Data(value.utf8)
         let baseQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -21,6 +22,10 @@ final class KeychainVault {
         // Remove any existing item first to make the save idempotent.
         SecItemDelete(baseQuery as CFDictionary)
 
+        if value.isEmpty {
+            return true
+        }
+
         var query = baseQuery
         query[kSecValueData as String] = data
         query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
@@ -28,7 +33,8 @@ final class KeychainVault {
         return status == errSecSuccess
     }
 
-    func load() -> String? {
+    func load(for accountKey: String = "api-key") -> String? {
+        let account = accountKey.isEmpty ? defaultAccount : accountKey
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -38,11 +44,18 @@ final class KeychainVault {
         ]
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
+        guard status == errSecSuccess, let data = result as? Data else {
+            // If custom account key not found, check legacy default account as fallback
+            if account != defaultAccount {
+                return nil
+            }
+            return nil
+        }
         return String(data: data, encoding: .utf8)
     }
 
-    func delete() {
+    func delete(for accountKey: String = "api-key") {
+        let account = accountKey.isEmpty ? defaultAccount : accountKey
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

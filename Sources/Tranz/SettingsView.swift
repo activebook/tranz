@@ -24,6 +24,11 @@ struct SettingsView: View {
     @ObservedObject var hotkeyManager: HotkeyManager
 
     @State private var selectedTab: SettingsTab = .service
+    @State private var editingEndpointID: UUID?
+    @State private var editedName: String = ""
+    @State private var editedURL: String = ""
+    @State private var editedModel: String = ""
+    @State private var editedApiKey: String = ""
     @State private var showApiKey: Bool = false
     @State private var isAccessibilityGranted: Bool = AccessibilityPermissionCoordinator.shared.isTrusted
 
@@ -54,8 +59,11 @@ struct SettingsView: View {
                 .padding(20)
             }
         }
-        .frame(width: 520, height: 430)
+        .frame(width: 560, height: 500)
         .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear {
+            syncEditingEndpoint()
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             isAccessibilityGranted = AccessibilityPermissionCoordinator.shared.isTrusted
         }
@@ -88,68 +96,278 @@ struct SettingsView: View {
 
     // MARK: - Panes
 
-    /// 1. AI Service Configuration Pane
+    /// 1. Multi-Endpoint AI Service Configuration Pane
     private var servicePane: some View {
         VStack(alignment: .leading, spacing: 16) {
-            settingsCard(title: "API Endpoint & Credentials", icon: "network") {
-                VStack(spacing: 12) {
-                    // Endpoint URL
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Endpoint URL")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                        TextField("http://localhost:11434/v1", text: $settings.endpointURL)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.system(size: 12))
+            // Endpoint List Selector Card
+            settingsCard(title: "Configured AI Services", icon: "server.rack") {
+                VStack(spacing: 8) {
+                    ForEach(settings.endpoints) { endpoint in
+                        endpointRow(endpoint)
                     }
 
-                    // API Key
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text("API Key")
+                    Divider()
+                        .padding(.vertical, 2)
+
+                    // Toolbar actions: Add Preset Menu
+                    HStack {
+                        Menu {
+                            Button("Ollama (Local Qwen 2.5)") {
+                                addPreset(AIEndpoint.ollamaPreset)
+                            }
+                            Button("OpenAI (GPT-4o mini)") {
+                                addPreset(AIEndpoint.openAIPreset)
+                            }
+                            Button("DeepSeek (DeepSeek V3)") {
+                                addPreset(AIEndpoint.deepSeekPreset)
+                            }
+                            Button("Groq (Llama 3.3 70B)") {
+                                addPreset(AIEndpoint.groqPreset)
+                            }
+                            Divider()
+                            Button("Custom Endpoint…") {
+                                addPreset(AIEndpoint.customPreset)
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Add Service…")
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+
+                        Spacer()
+                    }
+                }
+            }
+
+            // Profile Detail Editor Card
+            if let currentID = editingEndpointID,
+               let endpoint = settings.endpoints.first(where: { $0.id == currentID }) {
+                settingsCard(title: "Configure: \(endpoint.name)", icon: "slider.horizontal.3") {
+                    VStack(spacing: 12) {
+                        // Profile Name
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Service Name")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.secondary)
-                            Spacer()
-                            Button(action: { showApiKey.toggle() }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: showApiKey ? "eye.slash" : "eye")
-                                    Text(showApiKey ? "Hide" : "Show")
-                                }
-                                .font(.system(size: 10))
+                            TextField("e.g. Ollama Qwen, DeepSeek", text: $editedName)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(size: 12))
+                                .onChange(of: editedName) { _ in persistCurrentEdit() }
+                        }
+
+                        // Endpoint URL
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Endpoint Base URL")
+                                .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.secondary)
+                            TextField("http://localhost:11434/v1", text: $editedURL)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(size: 12))
+                                .onChange(of: editedURL) { _ in persistCurrentEdit() }
+                        }
+
+                        // API Key
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("API Key")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Button(action: { showApiKey.toggle() }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: showApiKey ? "eye.slash" : "eye")
+                                        Text(showApiKey ? "Hide" : "Show")
+                                    }
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
+
+                            if showApiKey {
+                                TextField("Optional for local models", text: $editedApiKey)
+                                    .textFieldStyle(.roundedBorder)
+                                    .font(.system(size: 12))
+                                    .onChange(of: editedApiKey) { _ in persistCurrentEdit() }
+                            } else {
+                                SecureField("Optional for local models", text: $editedApiKey)
+                                    .textFieldStyle(.roundedBorder)
+                                    .font(.system(size: 12))
+                                    .onChange(of: editedApiKey) { _ in persistCurrentEdit() }
+                            }
                         }
 
-                        if showApiKey {
-                            TextField("Optional for local models", text: $settings.apiKey)
+                        // Model Identifier
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Model Identifier")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                            TextField("e.g. qwen2.5:7b, gpt-4o-mini, deepseek-chat", text: $editedModel)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(size: 12))
-                        } else {
-                            SecureField("Optional for local models", text: $settings.apiKey)
-                                .textFieldStyle(.roundedBorder)
-                                .font(.system(size: 12))
+                                .onChange(of: editedModel) { _ in persistCurrentEdit() }
                         }
-                    }
 
-                    // Model Identifier
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Model Identifier")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                        TextField("e.g. qwen2.5, gpt-4o-mini, gemini-2.5-flash", text: $settings.model)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.system(size: 12))
+                        Divider()
+
+                        // Action Bar: Set Active & Delete
+                        HStack {
+                            if settings.selectedEndpointID != currentID {
+                                Button(action: {
+                                    settings.selectEndpoint(id: currentID)
+                                }) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "checkmark.circle")
+                                        Text("Set as Active Service")
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            } else {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    Text("Active Translation Service")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(.green)
+                                }
+                            }
+
+                            Spacer()
+
+                            if settings.endpoints.count > 1 {
+                                Button(role: .destructive, action: {
+                                    settings.removeEndpoint(id: currentID)
+                                    syncEditingEndpoint()
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "trash")
+                                        Text("Delete")
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                        }
                     }
                 }
             }
 
             // Informational Note
             infoBanner(
-                icon: "info.circle",
-                text: "Supports OpenAI-compatible /chat/completions endpoints. The API key is securely encrypted inside the macOS Keychain."
+                icon: "lock.shield",
+                text: "API keys are securely isolated in the macOS Keychain for each profile. Switch active services anytime here or from the Menu Bar."
             )
         }
+    }
+
+    private func endpointRow(_ endpoint: AIEndpoint) -> some View {
+        let isSelectedForEdit = editingEndpointID == endpoint.id
+        let isActive = settings.selectedEndpointID == endpoint.id
+
+        return HStack(spacing: 10) {
+            // Radio / Checkmark selector button
+            Button(action: {
+                settings.selectEndpoint(id: endpoint.id)
+                selectForEdit(endpoint)
+            }) {
+                Image(systemName: isActive ? "largecircle.fill.circle" : "circle")
+                    .foregroundColor(isActive ? .accentColor : .secondary)
+                    .font(.system(size: 14))
+            }
+            .buttonStyle(.plain)
+
+            // Endpoint details
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(endpoint.name)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.primary)
+
+                    Text(endpoint.model)
+                        .font(.system(size: 10, design: .monospaced))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.secondary.opacity(0.12)))
+
+                    if isActive {
+                        Text("ACTIVE")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(.green)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1.5)
+                            .background(Capsule().fill(Color.green.opacity(0.15)))
+                    }
+                }
+
+                Text(endpoint.baseURL)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            // Select to edit button / indicator
+            Button(action: {
+                selectForEdit(endpoint)
+            }) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 11))
+                    .foregroundColor(isSelectedForEdit ? .accentColor : .secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isSelectedForEdit ? Color.accentColor.opacity(0.08) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            selectForEdit(endpoint)
+        }
+    }
+
+    private func selectForEdit(_ endpoint: AIEndpoint) {
+        editingEndpointID = endpoint.id
+        editedName = endpoint.name
+        editedURL = endpoint.baseURL
+        editedModel = endpoint.model
+        editedApiKey = settings.apiKey(for: endpoint.id)
+    }
+
+    private func syncEditingEndpoint() {
+        if let current = settings.activeEndpoint {
+            selectForEdit(current)
+        }
+    }
+
+    private func persistCurrentEdit() {
+        guard let id = editingEndpointID else { return }
+        let updated = AIEndpoint(
+            id: id,
+            name: editedName.trimmingCharacters(in: .whitespaces),
+            baseURL: editedURL.trimmingCharacters(in: .whitespaces),
+            model: editedModel.trimmingCharacters(in: .whitespaces)
+        )
+        settings.updateEndpoint(updated, apiKey: editedApiKey)
+    }
+
+    private func addPreset(_ preset: AIEndpoint) {
+        var newEndpoint = preset
+        newEndpoint.id = UUID()
+        let existingNames = settings.endpoints.map { $0.name }
+        if existingNames.contains(newEndpoint.name) {
+            newEndpoint.name = "\(newEndpoint.name) (\(settings.endpoints.count + 1))"
+        }
+        settings.addEndpoint(newEndpoint)
+        selectForEdit(newEndpoint)
     }
 
     /// 2. Language Selection Pane
