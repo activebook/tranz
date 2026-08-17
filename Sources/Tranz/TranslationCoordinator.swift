@@ -26,19 +26,20 @@ final class TranslationCoordinator {
 
         guard AccessibilityPermissionCoordinator.shared.isTrusted else {
             _ = AccessibilityPermissionCoordinator.shared.requestIfNeeded()
-            TranslationHUD.shared.show(message: "Enable Accessibility permission, then relaunch")
+            TranslationHUD.shared.showInfo(message: "Enable Accessibility permission in Settings")
             return
         }
 
         guard settings.isConfigured else {
-            TranslationHUD.shared.show(message: "Set endpoint URL & model in Settings")
+            TranslationHUD.shared.showInfo(message: "Configure endpoint URL & model in Settings")
             return
         }
 
         guard !isTranslating else { return }
         isTranslating = true
 
-        TranslationHUD.shared.show(message: "Translating…", autoDismiss: false)
+        let targetLabel = LanguageCodes.label(for: settings.targetLanguage)
+        TranslationHUD.shared.showTranslating(targetLanguage: targetLabel)
         clipboard.save()
 
         reader.readFocusedText { [weak self] text in
@@ -48,7 +49,7 @@ final class TranslationCoordinator {
 
             guard let text, !text.isEmpty else {
                 self.isTranslating = false
-                TranslationHUD.shared.show(message: "No text in focused field")
+                TranslationHUD.shared.showError(message: "No text in focused field")
                 return
             }
 
@@ -62,11 +63,11 @@ final class TranslationCoordinator {
                             guard let self else { return }
                             self.clipboard.restore()
                             self.isTranslating = false
-                            TranslationHUD.shared.show(message: "Translated")
+                            TranslationHUD.shared.showSuccess(message: "Translated")
                         }
                     case .failure(let error):
                         self.isTranslating = false
-                        TranslationHUD.shared.show(message: error.localizedDescription)
+                        TranslationHUD.shared.showError(message: error.localizedDescription)
                     }
                 }
             }
