@@ -60,6 +60,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Menu bar
 
+    private var modelsSubmenu: NSMenu?
+
     private func setupMenuBar() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
@@ -76,6 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let menu = NSMenu()
+        menu.delegate = self
 
         let translateItem = NSMenuItem(
             title: "Translate Focused Field",
@@ -84,6 +87,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         translateItem.target = self
         menu.addItem(translateItem)
+
+        menu.addItem(.separator())
+
+        // AI Service Quick-Switcher Submenu
+        let modelsMenuItem = NSMenuItem(
+            title: "AI Service",
+            action: nil,
+            keyEquivalent: ""
+        )
+        let subMenu = NSMenu(title: "AI Service")
+        subMenu.delegate = self
+        modelsMenuItem.submenu = subMenu
+        menu.addItem(modelsMenuItem)
+        self.modelsSubmenu = subMenu
 
         menu.addItem(.separator())
 
@@ -130,7 +147,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    @objc private func didSelectEndpointMenuItem(_ sender: NSMenuItem) {
+        if let id = sender.representedObject as? UUID {
+            settings.selectEndpoint(id: id)
+        }
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+}
+
+// MARK: - NSMenuDelegate for Dynamic Submenus
+
+extension AppDelegate: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        if menu == modelsSubmenu {
+            guard let submenu = modelsSubmenu else { return }
+            submenu.removeAllItems()
+
+            let endpoints = settings.endpoints
+            let activeID = settings.selectedEndpointID
+
+            for endpoint in endpoints {
+                let item = NSMenuItem(
+                    title: endpoint.displayName,
+                    action: #selector(didSelectEndpointMenuItem(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = endpoint.id
+                item.state = (endpoint.id == activeID) ? .on : .off
+                submenu.addItem(item)
+            }
+        }
     }
 }
