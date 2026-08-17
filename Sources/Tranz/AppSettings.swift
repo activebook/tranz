@@ -29,6 +29,14 @@ final class AppSettings: ObservableObject {
         static let hotkeyModifiers = "hotkeyModifiers"
         static let hotkeyDisplayName = "hotkeyDisplayName"
 
+        static let nextHotkeyKeyCode = "nextHotkeyKeyCode"
+        static let nextHotkeyModifiers = "nextHotkeyModifiers"
+        static let nextHotkeyDisplayName = "nextHotkeyDisplayName"
+
+        static let prevHotkeyKeyCode = "prevHotkeyKeyCode"
+        static let prevHotkeyModifiers = "prevHotkeyModifiers"
+        static let prevHotkeyDisplayName = "prevHotkeyDisplayName"
+
         // Legacy single-endpoint keys for migration
         static let legacyEndpoint = "endpoint"
         static let legacyModel = "model"
@@ -56,6 +64,20 @@ final class AppSettings: ObservableObject {
             UserDefaults.standard.set(hotkey.displayName, forKey: Keys.hotkeyDisplayName)
         }
     }
+    @Published var nextLanguageHotkey: Hotkey {
+        didSet {
+            UserDefaults.standard.set(Int(nextLanguageHotkey.keyCode), forKey: Keys.nextHotkeyKeyCode)
+            UserDefaults.standard.set(Int(nextLanguageHotkey.modifiers), forKey: Keys.nextHotkeyModifiers)
+            UserDefaults.standard.set(nextLanguageHotkey.displayName, forKey: Keys.nextHotkeyDisplayName)
+        }
+    }
+    @Published var previousLanguageHotkey: Hotkey {
+        didSet {
+            UserDefaults.standard.set(Int(previousLanguageHotkey.keyCode), forKey: Keys.prevHotkeyKeyCode)
+            UserDefaults.standard.set(Int(previousLanguageHotkey.modifiers), forKey: Keys.prevHotkeyModifiers)
+            UserDefaults.standard.set(previousLanguageHotkey.displayName, forKey: Keys.prevHotkeyDisplayName)
+        }
+    }
 
     private init() {
         let defaults = UserDefaults.standard
@@ -75,6 +97,34 @@ final class AppSettings: ObservableObject {
                 keyCode: keyCode,
                 modifiers: modifiers,
                 displayName: (displayName?.isEmpty == false) ? displayName! : "Key\(keyCode)"
+            )
+        }
+
+        // Next Language Hotkey initialization
+        let nextKeyCode = UInt32(defaults.integer(forKey: Keys.nextHotkeyKeyCode))
+        let nextModifiers = UInt32(defaults.integer(forKey: Keys.nextHotkeyModifiers))
+        let nextDisplayName = defaults.string(forKey: Keys.nextHotkeyDisplayName)
+        if nextKeyCode == 0 && nextModifiers == 0 {
+            nextLanguageHotkey = .defaultNext
+        } else {
+            nextLanguageHotkey = Hotkey(
+                keyCode: nextKeyCode,
+                modifiers: nextModifiers,
+                displayName: (nextDisplayName?.isEmpty == false) ? nextDisplayName! : "Key\(nextKeyCode)"
+            )
+        }
+
+        // Previous Language Hotkey initialization
+        let prevKeyCode = UInt32(defaults.integer(forKey: Keys.prevHotkeyKeyCode))
+        let prevModifiers = UInt32(defaults.integer(forKey: Keys.prevHotkeyModifiers))
+        let prevDisplayName = defaults.string(forKey: Keys.prevHotkeyDisplayName)
+        if prevKeyCode == 0 && prevModifiers == 0 {
+            previousLanguageHotkey = .defaultPrev
+        } else {
+            previousLanguageHotkey = Hotkey(
+                keyCode: prevKeyCode,
+                modifiers: prevModifiers,
+                displayName: (prevDisplayName?.isEmpty == false) ? prevDisplayName! : "Key\(prevKeyCode)"
             )
         }
 
@@ -185,6 +235,17 @@ final class AppSettings: ObservableObject {
 
     func setApiKey(_ key: String, for endpointID: UUID) {
         KeychainVault.shared.save(key, for: endpointID.uuidString)
+    }
+
+    // MARK: - Language Cycling Helper
+
+    @discardableResult
+    func cycleTargetLanguage(forward: Bool = true) -> Language {
+        let next = forward
+            ? LanguageCodes.nextLanguage(after: targetLanguage)
+            : LanguageCodes.previousLanguage(before: targetLanguage)
+        targetLanguage = next.code
+        return next
     }
 
     private func saveEndpoints() {

@@ -22,4 +22,20 @@ enum LanguageCodes {
     static func label(for code: String) -> String {
         all.first { $0.code == code }?.label ?? code
     }
+
+    static func nextLanguage(after code: String) -> Language {
+        guard let currentIndex = all.firstIndex(where: { $0.code == code }) else {
+            return all[0]
+        }
+        let nextIndex = (currentIndex + 1) % all.count
+        return all[nextIndex]
+    }
+
+    static func previousLanguage(before code: String) -> Language {
+        guard let currentIndex = all.firstIndex(where: { $0.code == code }) else {
+            return all[0]
+        }
+        let prevIndex = (currentIndex - 1 + all.count) % all.count
+        return all[prevIndex]
+    }
 }

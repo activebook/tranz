@@ -8,6 +8,7 @@ enum HUDState: Equatable {
     case success(message: String)
     case error(message: String)
     case info(message: String)
+    case languageChanged(targetLanguage: String)
 }
 
 /// Observable view model binding state transitions with reactive SwiftUI animation flows.
@@ -29,6 +30,16 @@ struct TranslationHUDView: View {
                 SpinningArc()
                 Text(targetLanguage.isEmpty ? "Translating…" : "Translating to \(targetLanguage)…")
                     .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.primary)
+                    .fixedSize(horizontal: true, vertical: false)
+
+            case .languageChanged(let targetLanguage):
+                Image(systemName: "globe")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.accentColor)
+                    .transition(.scale.combined(with: .opacity))
+                Text("Target: \(targetLanguage)")
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.primary)
                     .fixedSize(horizontal: true, vertical: false)
 
@@ -151,6 +162,16 @@ final class TranslationHUD {
             self.viewModel.state = .info(message: message)
             self.present()
             self.scheduleDismiss(after: 2.0)
+        }
+    }
+
+    func showLanguageChanged(targetLanguage: String) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.dismissWorkItem?.cancel()
+            self.viewModel.state = .languageChanged(targetLanguage: targetLanguage)
+            self.present()
+            self.scheduleDismiss(after: 1.2)
         }
     }
 

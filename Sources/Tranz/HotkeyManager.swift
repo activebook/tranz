@@ -3,8 +3,12 @@ import Carbon
 import Combine
 
 extension Notification.Name {
-    /// Posted whenever the global hotkey is pressed.
+    /// Posted whenever the translation global hotkey is pressed.
     static let hotkeyPressed = Notification.Name("TranzHotkeyPressed")
+    /// Posted whenever the next target language shortcut is pressed.
+    static let nextLanguageHotkeyPressed = Notification.Name("TranzNextLanguageHotkeyPressed")
+    /// Posted whenever the previous target language shortcut is pressed.
+    static let previousLanguageHotkeyPressed = Notification.Name("TranzPreviousLanguageHotkeyPressed")
 }
 
 /// Carbon event-modifier masks (independent of the keyboard layout).
@@ -16,10 +20,6 @@ enum ModifierMasks {
 }
 
 /// A global shortcut: a physical virtual keycode plus a Carbon modifier mask.
-///
-/// `displayName` is the character that the key produces (captured at record time),
-/// used only for the settings UI. RegisterEventHotKey matches the physical keycode,
-/// so the shortcut itself is layout-independent.
 struct Hotkey: Equatable {
     var keyCode: UInt32
     var modifiers: UInt32
@@ -27,6 +27,12 @@ struct Hotkey: Equatable {
 
     /// Default shortcut: Option+T (kVK_ANSI_T == 0x11).
     static let `default` = Hotkey(keyCode: 0x11, modifiers: ModifierMasks.option, displayName: "T")
+
+    /// Default next language shortcut: Option+] (kVK_ANSI_RightBracket == 0x1E).
+    static let defaultNext = Hotkey(keyCode: 0x1E, modifiers: ModifierMasks.option, displayName: "]")
+
+    /// Default previous language shortcut: Option+[ (kVK_ANSI_LeftBracket == 0x21).
+    static let defaultPrev = Hotkey(keyCode: 0x21, modifiers: ModifierMasks.option, displayName: "[")
 
     var displayString: String {
         var s = ""
@@ -39,60 +45,114 @@ struct Hotkey: Equatable {
     }
 }
 
-/// Registers a system-wide hotkey via Carbon `RegisterEventHotKey`.
-///
-/// Unlike a global `NSEvent` monitor, RegisterEventHotKey *consumes* the key
-/// combination, so Option+T is never typed into the focused field.
+/// Identifies the distinct operational roles assigned to global hotkeys.
+enum HotkeyRole: String, CaseIterable, Identifiable {
+    case translate
+    case nextLanguage
+    case previousLanguage
+
+    var id: String { rawValue }
+
+    var hotKeyID: UInt32 {
+        switch self {
+        case .translate: return 1
+        case .nextLanguage: return 2
+        case .previousLanguage: return 3
+        }
+    }
+}
+
+/// Registers and manages system-wide shortcuts via Carbon `RegisterEventHotKey`.
 final class HotkeyManager: ObservableObject {
     static let shared = HotkeyManager()
 
-    @Published private(set) var isRecording = false
+    @Published private(set) var recordingRole: HotkeyRole? = nil
 
-    private var hotKeyRef: EventHotKeyRef?
+    var isRecording: Bool { recordingRole != nil }
+
+    private var hotKeyRefs: [UInt32: EventHotKeyRef] = [:]
     private var eventHandlerRef: EventHandlerRef?
     private var recordMonitor: Any?
 
-    private let hotKeyID = EventHotKeyID(signature: 0x5452_4E5A, id: 1) // "TRNZ"
+    private let signature: OSType = 0x5452_4E5A // "TRNZ"
 
     private init() {}
 
-    func register(with hotkey: Hotkey) {
-        unregister()
+    func registerAll() {
+        unregisterAll()
         installEventHandlerIfNeeded()
+        let settings = AppSettings.shared
+        register(role: .translate, with: settings.hotkey)
+        register(role: .nextLanguage, with: settings.nextLanguageHotkey)
+        register(role: .previousLanguage, with: settings.previousLanguageHotkey)
+    }
+
+    func register(role: HotkeyRole, with hotkey: Hotkey) {
+        unregister(role: role)
+        installEventHandlerIfNeeded()
+        var ref: EventHotKeyRef?
+        let hotKeyID = EventHotKeyID(signature: signature, id: role.hotKeyID)
         let status = RegisterEventHotKey(
             hotkey.keyCode,
             hotkey.modifiers,
             hotKeyID,
             GetApplicationEventTarget(),
             0,
-            &hotKeyRef
+            &ref
         )
-        if status != noErr {
-            NSLog("Tranz: RegisterEventHotKey failed with OSStatus \(status)")
+        if status == noErr, let ref {
+            hotKeyRefs[role.hotKeyID] = ref
+        } else {
+            NSLog("Tranz: RegisterEventHotKey for \(role) failed with OSStatus \(status)")
+        }
+    }
+
+    /// Legacy compatibility bridge
+    func register(with hotkey: Hotkey) {
+        register(role: .translate, with: hotkey)
+    }
+
+    func unregister(role: HotkeyRole) {
+        if let ref = hotKeyRefs[role.hotKeyID] {
+            UnregisterEventHotKey(ref)
+            hotKeyRefs.removeValue(forKey: role.hotKeyID)
         }
     }
 
     func unregister() {
-        if let ref = hotKeyRef {
+        unregister(role: .translate)
+    }
+
+    func unregisterAll() {
+        for (_, ref) in hotKeyRefs {
             UnregisterEventHotKey(ref)
-            hotKeyRef = nil
         }
+        hotKeyRefs.removeAll()
     }
 
     // MARK: - Recording (settings UI)
 
-    func beginRecording() {
-        guard !isRecording else { return }
-        isRecording = true
+    func beginRecording(for role: HotkeyRole = .translate) {
+        guard recordingRole == nil else { return }
+        recordingRole = role
         recordMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.finishRecording(with: event)
             return nil // consume the key while recording
         }
     }
 
+    func cancelRecording() {
+        guard recordingRole != nil else { return }
+        recordingRole = nil
+        if let monitor = recordMonitor {
+            NSEvent.removeMonitor(monitor)
+            recordMonitor = nil
+        }
+    }
+
     private func finishRecording(with event: NSEvent) {
-        guard isRecording else { return }
-        isRecording = false
+        guard let role = recordingRole else { return }
+        recordingRole = nil
         if let monitor = recordMonitor {
             NSEvent.removeMonitor(monitor)
             recordMonitor = nil
@@ -105,8 +165,18 @@ final class HotkeyManager: ObservableObject {
 
         let name = (event.charactersIgnoringModifiers ?? "").uppercased()
         let displayName = name.isEmpty ? "Key\(keyCode)" : name
-        AppSettings.shared.hotkey = Hotkey(keyCode: keyCode, modifiers: modifiers, displayName: displayName)
-        register(with: AppSettings.shared.hotkey)
+        let hotkey = Hotkey(keyCode: keyCode, modifiers: modifiers, displayName: displayName)
+
+        let settings = AppSettings.shared
+        switch role {
+        case .translate:
+            settings.hotkey = hotkey
+        case .nextLanguage:
+            settings.nextLanguageHotkey = hotkey
+        case .previousLanguage:
+            settings.previousLanguageHotkey = hotkey
+        }
+        register(role: role, with: hotkey)
     }
 
     static func carbonModifiers(from flags: NSEvent.ModifierFlags) -> UInt32 {
@@ -155,7 +225,13 @@ private func hotkeyEventHandler(
         &hotKeyID
     )
     if status == noErr {
-        NotificationCenter.default.post(name: .hotkeyPressed, object: nil)
+        if hotKeyID.id == 1 {
+            NotificationCenter.default.post(name: .hotkeyPressed, object: nil)
+        } else if hotKeyID.id == 2 {
+            NotificationCenter.default.post(name: .nextLanguageHotkeyPressed, object: nil)
+        } else if hotKeyID.id == 3 {
+            NotificationCenter.default.post(name: .previousLanguageHotkeyPressed, object: nil)
+        }
     }
     return noErr
 }
