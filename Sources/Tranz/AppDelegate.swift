@@ -90,13 +90,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
-        // Active AI Service Quick-Switcher Submenu
+        // AI Service Quick-Switcher Submenu
         let modelsMenuItem = NSMenuItem(
-            title: "Active AI Service",
+            title: "AI Service",
             action: nil,
             keyEquivalent: ""
         )
-        let subMenu = NSMenu(title: "Active AI Service")
+        let subMenu = NSMenu(title: "AI Service")
         subMenu.delegate = self
         modelsMenuItem.submenu = subMenu
         menu.addItem(modelsMenuItem)
