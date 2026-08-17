@@ -100,6 +100,9 @@ jobs:
           test -d "build/Tranz.app"
           test -f "build/Tranz.app/Contents/MacOS/Tranz"
           test -f "build/Tranz.app/Contents/Resources/AppIcon.icns"
+          echo "Verifying Universal Mach-O architectures..."
+          lipo -info "build/Tranz.app/Contents/MacOS/Tranz" | grep -q "arm64"
+          lipo -info "build/Tranz.app/Contents/MacOS/Tranz" | grep -q "x86_64"
           codesign --verify --deep --strict --verbose=2 build/Tranz.app
 
       - name: Create Distributable Archive
