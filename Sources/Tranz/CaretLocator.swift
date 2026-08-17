@@ -52,25 +52,7 @@ final class CaretLocator {
         }
         let element = focusedElement as! AXUIElement
 
-        // Option A: Try to query exact caret / selection range bounds
-        var selectedRangeValue: AnyObject?
-        if AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &selectedRangeValue) == .success,
-           let rangeValue = selectedRangeValue,
-           CFGetTypeID(rangeValue) == AXValueGetTypeID() {
-            let axRange = rangeValue as! AXValue
-            var boundsValue: AnyObject?
-            if AXUIElementCopyParameterizedAttributeValue(element, kAXBoundsForRangeParameterizedAttribute as CFString, axRange, &boundsValue) == .success,
-               let boundsVal = boundsValue,
-               CFGetTypeID(boundsVal) == AXValueGetTypeID() {
-                var cgRect = CGRect.zero
-                if AXValueGetValue(boundsVal as! AXValue, .cgRect, &cgRect), cgRect.width > 0, cgRect.height > 0 {
-                    let cocoaY = primaryScreenHeight - cgRect.origin.y - cgRect.size.height
-                    return NSRect(x: cgRect.origin.x, y: cocoaY, width: cgRect.size.width, height: cgRect.size.height)
-                }
-            }
-        }
-
-        // Option B: Query element position & size bounding box
+        // 1. Primary: Query the input control's bounding frame (position & size)
         var posValue: AnyObject?
         var sizeValue: AnyObject?
         if AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &posValue) == .success,
@@ -89,28 +71,42 @@ final class CaretLocator {
             }
         }
 
+        // 2. Secondary: Fallback to exact selection / caret range bounds if element box is unavailable
+        var selectedRangeValue: AnyObject?
+        if AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &selectedRangeValue) == .success,
+           let rangeValue = selectedRangeValue,
+           CFGetTypeID(rangeValue) == AXValueGetTypeID() {
+            let axRange = rangeValue as! AXValue
+            var boundsValue: AnyObject?
+            if AXUIElementCopyParameterizedAttributeValue(element, kAXBoundsForRangeParameterizedAttribute as CFString, axRange, &boundsValue) == .success,
+               let boundsVal = boundsValue,
+               CFGetTypeID(boundsVal) == AXValueGetTypeID() {
+                var cgRect = CGRect.zero
+                if AXValueGetValue(boundsVal as! AXValue, .cgRect, &cgRect), cgRect.width > 0, cgRect.height > 0 {
+                    let cocoaY = primaryScreenHeight - cgRect.origin.y - cgRect.size.height
+                    return NSRect(x: cgRect.origin.x, y: cocoaY, width: cgRect.size.width, height: cgRect.size.height)
+                }
+            }
+        }
+
         return nil
     }
 
     // MARK: - Positioning Mathematics
 
     private func computePosition(for targetRect: NSRect, hudSize: NSSize, visibleFrame: NSRect) -> NSPoint {
-        // Horizontally: center aligned with target input element or right-aligned if input is long
-        var x = targetRect.minX + (targetRect.width - hudSize.width) / 2
-        if targetRect.width > 400 {
-            // For wide input fields (e.g. browser URL bar), anchor near the end or right side
-            x = targetRect.maxX - hudSize.width - 12
-        }
+        // Horizontally: Vertically align with the left side (leading edge) of the input area
+        var x = targetRect.minX
 
-        // Vertically: Place directly beneath the target rect by default
-        var y = targetRect.minY - hudSize.height - 10
+        // Vertically: Place directly on the next line beneath the input field with a 6px margin
+        var y = targetRect.minY - hudSize.height - 6
 
-        // If placing below goes off the bottom of the screen, flip above the input field
+        // If placing below goes off the bottom of the screen, flip directly above the input field
         if y < visibleFrame.minY + 12 {
-            y = targetRect.maxY + 10
+            y = targetRect.maxY + 6
         }
 
-        // Clamp inside visible bounds
+        // Clamp inside visible bounds so it never clips off the screen
         x = clamp(x, min: visibleFrame.minX + 16, max: visibleFrame.maxX - hudSize.width - 16)
         y = clamp(y, min: visibleFrame.minY + 16, max: visibleFrame.maxY - hudSize.height - 16)
 
