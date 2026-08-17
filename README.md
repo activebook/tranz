@@ -52,11 +52,12 @@ Configure endpoints, language targets, and shortcuts:
 ## Features
 
 * **In-Place Replacement**: Replaces text directly inside the focused field via global shortcut (default: `Option+T` / `⌥T`).
+* **Target Language Switching**: Cycle target languages instantly via global shortcuts (`Option+]` / `Option+[`) or from the menu bar with HUD feedback.
 * **OpenAI-Compatible Backends**: Works with local servers (Ollama, LM Studio, vLLM) and cloud providers.
 * **Multi-Service Profiles**: Save multiple endpoints and switch active models from the menu bar.
 * **Non-Destructive Clipboard**: Automatically preserves and restores pasteboard contents before and after translation.
 * **Keychain Storage**: API keys are stored securely in macOS Keychain.
-* **Rebindable Shortcut**: Easily record and rebind the global trigger keystroke.
+* **Rebindable Shortcuts**: Easily record and customize all global trigger keystrokes in settings.
 * **Launch at Login**: Optional setting to start Tranz automatically on login.
 * **Language Detection**: Auto-detects input language or uses fixed source/target pairs.
 
@@ -91,9 +92,8 @@ open build/Tranz.app
 
 ## Usage
 
-1. Type or select text in any application (e.g., Slack, Notes, Safari, VS Code, Mail).
-2. Press **`Option+T`** (`⌥T`).
-3. The focused text is automatically translated in-place. If needed, standard **`Command+Z`** (`⌘Z` / Undo) reverts the translation immediately.
+1. **Translate**: Type or select text in any application and press **`Option+T`** (`⌥T`) to translate in-place. Standard **`Command+Z`** (`⌘Z` / Undo) reverts the replacement immediately.
+2. **Switch Target Language**: Press **`Option+]`** (`⌥]`) to cycle forward or **`Option+[`** (`⌥[`) to cycle backward through target languages, or pick directly from the menu bar.
 
 ---
 

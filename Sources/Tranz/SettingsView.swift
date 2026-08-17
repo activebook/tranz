@@ -386,7 +386,7 @@ struct SettingsView: View {
 
             infoBanner(
                 icon: "globe",
-                text: "Auto-detect analyzes the selected input language and translates it into your chosen Target Language."
+                text: "Auto-detect analyzes the selected input language and translates it into your chosen Target Language. Press ⌥] or ⌥[ anywhere to cycle target languages on the fly."
             )
         }
     }
@@ -394,44 +394,84 @@ struct SettingsView: View {
     /// 3. Shortcuts Configuration Pane
     private var shortcutsPane: some View {
         VStack(alignment: .leading, spacing: 16) {
-            settingsCard(title: "Global Shortcut Trigger", icon: "keyboard.fill") {
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Translate Focused Field")
-                            .font(.system(size: 12, weight: .medium))
-                        Text("Applies translation directly in the active application")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
+            settingsCard(title: "Global Shortcuts", icon: "keyboard.fill") {
+                VStack(spacing: 12) {
+                    shortcutRow(
+                        title: "Translate Focused Field",
+                        subtitle: "Translate text in the current field of any app",
+                        hotkey: settings.hotkey,
+                        role: .translate
+                    )
 
-                    Spacer()
+                    Divider()
 
-                    HStack(spacing: 8) {
-                        // Key Badge
-                        Text(settings.hotkey.displayString)
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Color(nsColor: .controlBackgroundColor))
-                            .cornerRadius(6)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
-                            )
+                    shortcutRow(
+                        title: "Next Target Language",
+                        subtitle: "Switch to the next language in the list",
+                        hotkey: settings.nextLanguageHotkey,
+                        role: .nextLanguage
+                    )
 
-                        Button(hotkeyManager.isRecording ? "Press keys…" : "Record") {
-                            hotkeyManager.beginRecording()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(hotkeyManager.isRecording ? .orange : .accentColor)
-                    }
+                    Divider()
+
+                    shortcutRow(
+                        title: "Previous Target Language",
+                        subtitle: "Switch to the previous language in the list",
+                        hotkey: settings.previousLanguageHotkey,
+                        role: .previousLanguage
+                    )
                 }
             }
 
             infoBanner(
                 icon: "sparkles",
-                text: "Focus on any editable text field in any app, then trigger this hotkey to translate text in-place."
+                text: "Global shortcuts operate across all applications. Press Record, then press your desired key combination with at least one modifier."
             )
+        }
+    }
+
+    private func shortcutRow(
+        title: String,
+        subtitle: String,
+        hotkey: Hotkey,
+        role: HotkeyRole
+    ) -> some View {
+        let isRecordingThis = hotkeyManager.recordingRole == role
+
+        return HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Text(hotkey.displayString)
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .cornerRadius(6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+
+                Button(isRecordingThis ? "Press keys…" : "Record") {
+                    if isRecordingThis {
+                        hotkeyManager.cancelRecording()
+                    } else {
+                        hotkeyManager.beginRecording(for: role)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(isRecordingThis ? .orange : .accentColor)
+                .controlSize(.small)
+            }
         }
     }
 

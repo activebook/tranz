@@ -9,13 +9,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
         setupMenuBar()
-        hotkeyManager.register(with: settings.hotkey)
+        hotkeyManager.registerAll()
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleHotkey),
             name: .hotkeyPressed,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleNextLanguageHotkey),
+            name: .nextLanguageHotkeyPressed,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePreviousLanguageHotkey),
+            name: .previousLanguageHotkeyPressed,
+            object: nil
+        )
+
         // Prompt for Accessibility permission on first launch (needed to post
         // the synthetic Cmd+A / Cmd+C / Cmd+V events).
         AccessibilityPermissionCoordinator.shared.requestIfNeeded()
@@ -61,6 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Menu bar
 
     private var modelsSubmenu: NSMenu?
+    private var languagesSubmenu: NSMenu?
 
     private func setupMenuBar() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -89,6 +104,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(translateItem)
 
         menu.addItem(.separator())
+
+        // Target Language Quick-Switcher Submenu
+        let languagesMenuItem = NSMenuItem(
+            title: "Target Language",
+            action: nil,
+            keyEquivalent: ""
+        )
+        let langSubMenu = NSMenu(title: "Target Language")
+        langSubMenu.delegate = self
+        languagesMenuItem.submenu = langSubMenu
+        menu.addItem(languagesMenuItem)
+        self.languagesSubmenu = langSubMenu
 
         // AI Service Quick-Switcher Submenu
         let modelsMenuItem = NSMenuItem(
@@ -136,6 +163,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         TranslationCoordinator.shared.performTranslation()
     }
 
+    @objc private func handleNextLanguageHotkey() {
+        let lang = settings.cycleTargetLanguage(forward: true)
+        TranslationHUD.shared.showLanguageChanged(targetLanguage: lang.label)
+    }
+
+    @objc private func handlePreviousLanguageHotkey() {
+        let lang = settings.cycleTargetLanguage(forward: false)
+        TranslationHUD.shared.showLanguageChanged(targetLanguage: lang.label)
+    }
+
     @objc private func openSettings() {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController(
@@ -150,6 +187,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func didSelectEndpointMenuItem(_ sender: NSMenuItem) {
         if let id = sender.representedObject as? UUID {
             settings.selectEndpoint(id: id)
+        }
+    }
+
+    @objc private func didSelectLanguageMenuItem(_ sender: NSMenuItem) {
+        if let code = sender.representedObject as? String {
+            settings.targetLanguage = code
+            let label = LanguageCodes.label(for: code)
+            TranslationHUD.shared.showLanguageChanged(targetLanguage: label)
         }
     }
 
@@ -178,6 +223,23 @@ extension AppDelegate: NSMenuDelegate {
                 item.target = self
                 item.representedObject = endpoint.id
                 item.state = (endpoint.id == activeID) ? .on : .off
+                submenu.addItem(item)
+            }
+        } else if menu == languagesSubmenu {
+            guard let submenu = languagesSubmenu else { return }
+            submenu.removeAllItems()
+
+            let activeCode = settings.targetLanguage
+
+            for language in LanguageCodes.all {
+                let item = NSMenuItem(
+                    title: language.label,
+                    action: #selector(didSelectLanguageMenuItem(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = language.code
+                item.state = (language.code == activeCode) ? .on : .off
                 submenu.addItem(item)
             }
         }
