@@ -6,7 +6,7 @@ import CoreGraphics
 /// app. Requires the app to be a trusted Accessibility client.
 enum KeySimulator {
     static func press(keyCode: CGKeyCode, flags: CGEventFlags) {
-        let source = CGEventSource(stateID: .hidSystemState)
+        guard let source = CGEventSource(stateID: .combinedSessionState) else { return }
         let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true)
         let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
         down?.flags = flags
