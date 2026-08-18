@@ -52,7 +52,7 @@ Configure endpoints, language targets, and shortcuts:
 ## Features
 
 * **In-Place Replacement**: Replaces text directly inside the focused field via global shortcut (default: `Option+T` / `⌥T`).
-* **Universal 2 Binary**: Native fat binary supporting both Apple Silicon (`arm64`) and Intel (`x86_64`) chips.
+* **Universal 2 Binary**: Native universal binary supporting both Apple Silicon (`arm64`) and Intel (`x86_64`) chips.
 * **In-App Auto-Updates**: Seamless one-click upgrades with SHA-256 integrity validation and release changelogs.
 * **Target Language Switching**: Cycle target languages instantly via global shortcuts (`Option+]` / `Option+[`) or from the menu bar with HUD feedback.
 * **OpenAI-Compatible Backends**: Works with local servers (Ollama, LM Studio, vLLM) and cloud providers.
