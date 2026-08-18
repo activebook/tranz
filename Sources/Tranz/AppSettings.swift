@@ -37,6 +37,8 @@ final class AppSettings: ObservableObject {
         static let prevHotkeyModifiers = "prevHotkeyModifiers"
         static let prevHotkeyDisplayName = "prevHotkeyDisplayName"
 
+        static let rawModelOutputEnabled = "rawModelOutputEnabled"
+
         // Legacy single-endpoint keys for migration
         static let legacyEndpoint = "endpoint"
         static let legacyModel = "model"
@@ -56,6 +58,9 @@ final class AppSettings: ObservableObject {
     }
     @Published var sourceLanguage: String {
         didSet { UserDefaults.standard.set(sourceLanguage, forKey: Keys.sourceLanguage) }
+    }
+    @Published var rawModelOutputEnabled: Bool {
+        didSet { UserDefaults.standard.set(rawModelOutputEnabled, forKey: Keys.rawModelOutputEnabled) }
     }
     @Published var hotkey: Hotkey {
         didSet {
@@ -85,6 +90,7 @@ final class AppSettings: ObservableObject {
         targetLanguage = defaults.string(forKey: Keys.targetLanguage) ?? "en"
         sourceMode = SourceMode(rawValue: defaults.string(forKey: Keys.sourceMode) ?? "") ?? .autoDetect
         sourceLanguage = defaults.string(forKey: Keys.sourceLanguage) ?? "en"
+        rawModelOutputEnabled = defaults.bool(forKey: Keys.rawModelOutputEnabled)
 
         // Hotkey initialization
         let keyCode = UInt32(defaults.integer(forKey: Keys.hotkeyKeyCode))
@@ -187,7 +193,8 @@ final class AppSettings: ObservableObject {
             targetLanguage: LanguageCodes.label(for: targetLanguage),
             sourceLanguage: sourceMode == .autoDetect
                 ? "auto-detect"
-                : LanguageCodes.label(for: sourceLanguage)
+                : LanguageCodes.label(for: sourceLanguage),
+            preserveRawOutput: rawModelOutputEnabled
         )
     }
 

@@ -15,9 +15,9 @@ final class SettingsWindowController: NSWindowController {
         let window = NSWindow(contentViewController: hosting)
         window.title = "Tranz Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 560, height: 500))
-        window.minSize = NSSize(width: 560, height: 500)
-        window.maxSize = NSSize(width: 560, height: 500)
+        window.setContentSize(NSSize(width: 580, height: 500))
+        window.minSize = NSSize(width: 580, height: 500)
+        window.maxSize = NSSize(width: 580, height: 500)
         window.center()
 
         super.init(window: window)
