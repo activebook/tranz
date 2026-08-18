@@ -5,10 +5,12 @@ import Security
 final class KeychainVault {
     static let shared = KeychainVault()
 
-    private let service = "com.tranz.app"
+    private let service: String
     private let defaultAccount = "api-key"
 
-    private init() {}
+    private init() {
+        self.service = Bundle.main.bundleIdentifier ?? "com.activebook.tranz"
+    }
 
     @discardableResult
     func save(_ value: String, for accountKey: String = "api-key") -> Bool {
@@ -45,10 +47,6 @@ final class KeychainVault {
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         guard status == errSecSuccess, let data = result as? Data else {
-            // If custom account key not found, check legacy default account as fallback
-            if account != defaultAccount {
-                return nil
-            }
             return nil
         }
         return String(data: data, encoding: .utf8)

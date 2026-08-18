@@ -224,6 +224,7 @@ final class UpdateCoordinator: NSObject, ObservableObject {
             rm -rf "\(oldPath)"
             cp -R "\(newPath)" "\(oldPath)"
             xattr -dr com.apple.quarantine "\(oldPath)" 2>/dev/null || true
+            /usr/bin/tccutil reset Accessibility com.activebook.tranz 2>/dev/null || true
             /usr/bin/open "\(oldPath)"
         ) >/dev/null 2>&1 &
         """
