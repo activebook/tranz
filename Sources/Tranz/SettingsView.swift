@@ -36,7 +36,7 @@ struct SettingsView: View {
     @State private var editedModel: String = ""
     @State private var editedApiKey: String = ""
     @State private var showApiKey: Bool = false
-    @State private var isAccessibilityGranted: Bool = AccessibilityPermissionCoordinator.shared.isTrusted
+    @ObservedObject private var accessibilityCoordinator = AccessibilityPermissionCoordinator.shared
     @ObservedObject private var launchCoordinator = LaunchAtLoginCoordinator.shared
 
     var body: some View {
@@ -70,10 +70,11 @@ struct SettingsView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             syncEditingEndpoint()
+            accessibilityCoordinator.refreshStatus()
             launchCoordinator.refreshStatus()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            isAccessibilityGranted = AccessibilityPermissionCoordinator.shared.isTrusted
+            accessibilityCoordinator.refreshStatus()
             launchCoordinator.refreshStatus()
         }
     }
@@ -560,19 +561,25 @@ struct SettingsView: View {
 
                         // Status Badge
                         HStack(spacing: 5) {
-                            Image(systemName: isAccessibilityGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                .foregroundColor(isAccessibilityGranted ? .green : .orange)
-                            Text(isAccessibilityGranted ? "Granted" : "Required")
+                            Image(systemName: accessibilityCoordinator.isTrusted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                .foregroundColor(accessibilityCoordinator.isTrusted ? .green : .orange)
+                            Text(accessibilityCoordinator.isTrusted ? "Granted" : "Required")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(isAccessibilityGranted ? .green : .orange)
+                                .foregroundColor(accessibilityCoordinator.isTrusted ? .green : .orange)
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            (isAccessibilityGranted ? Color.green : Color.orange)
+                            (accessibilityCoordinator.isTrusted ? Color.green : Color.orange)
                                 .opacity(0.12)
                         )
                         .cornerRadius(6)
+                    }
+
+                    if !accessibilityCoordinator.isTrusted {
+                        Text("Note: macOS requires restarting Tranz after enabling Accessibility in System Settings for changes to take effect.")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
                     }
 
                     Divider()
@@ -782,8 +789,8 @@ struct SettingsView: View {
             }
 
             infoBanner(
-                icon: isAccessibilityGranted ? "hand.thumbsup" : "exclamationmark.circle",
-                text: isAccessibilityGranted
+                icon: accessibilityCoordinator.isTrusted ? "hand.thumbsup" : "exclamationmark.circle",
+                text: accessibilityCoordinator.isTrusted
                     ? "Accessibility access is verified. Tranz is ready to interact with all apps."
                     : "After toggling Tranz in System Settings → Privacy & Security → Accessibility, relaunch the app for permissions to take effect."
             )
