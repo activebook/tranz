@@ -40,12 +40,17 @@ Tranz operates directly within the focused input field:
 
 ## Settings
 
-Configure endpoints, language targets, and shortcuts:
+Configure AI services, language targets, global shortcuts, and system preferences:
 
-| Target Language Selection | Global Shortcut Configuration |
+| AI Service Profiles | Target Language Selection |
 | :---: | :---: |
-| <img src="snapshot/lang_select.png" alt="Target Language Selection" width="380" /> | <img src="snapshot/key_trigger.png" alt="Shortcut Trigger Customization" width="380" /> |
-| *Select the default target language.* | *Record a custom global shortcut.* |
+| <img src="snapshot/ai_service.png" alt="AI Service Configuration" width="380" /> | <img src="snapshot/lang_select.png" alt="Target Language Selection" width="380" /> |
+| *Manage local & cloud AI endpoints.* | *Select default target and source languages.* |
+
+| Global Shortcut Customization | System & Software Updates |
+| :---: | :---: |
+| <img src="snapshot/key_trigger.png" alt="Shortcut Trigger Customization" width="380" /> | <img src="snapshot/system_setting.png" alt="System Preferences and Updates" width="380" /> |
+| *Record custom hotkeys for translation & cycling.* | *Launch at login, accessibility status, and in-app updates.* |
 
 ---
 
