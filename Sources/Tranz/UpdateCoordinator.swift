@@ -92,6 +92,9 @@ final class UpdateCoordinator: NSObject, ObservableObject {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
     }
 
+    /// Cached ETag from the most recent successful GitHub API response to enable conditional (304) requests.
+    private var lastReleaseETag: String?
+
     private override init() {
         super.init()
     }
@@ -120,6 +123,9 @@ final class UpdateCoordinator: NSObject, ObservableObject {
         var request = URLRequest(url: apiURL)
         request.setValue("Tranz-App/\(currentVersionString)", forHTTPHeaderField: "User-Agent")
         request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        if let etag = lastReleaseETag {
+            request.setValue(etag, forHTTPHeaderField: "If-None-Match")
+        }
         request.timeoutInterval = 15
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
@@ -139,6 +145,22 @@ final class UpdateCoordinator: NSObject, ObservableObject {
                 return
             }
 
+            // HTTP 304 Not Modified: Cached release payload is unchanged and does not deplete rate limits
+            if httpResponse.statusCode == 304 {
+                DispatchQueue.main.async {
+                    self.state = .upToDate(currentVersion: self.currentVersionString)
+                }
+                return
+            }
+
+            // HTTP 403 Forbidden: Unauthenticated GitHub API rate limit reached (60 req/hour)
+            if httpResponse.statusCode == 403 {
+                DispatchQueue.main.async {
+                    self.state = .failed(error: "GitHub API rate limit reached (60 requests/hr). Please try again shortly.")
+                }
+                return
+            }
+
             guard httpResponse.statusCode == 200, let data = data else {
                 DispatchQueue.main.async {
                     if httpResponse.statusCode == 404 {
@@ -148,6 +170,11 @@ final class UpdateCoordinator: NSObject, ObservableObject {
                     }
                 }
                 return
+            }
+
+            // Store ETag for subsequent conditional requests
+            if let etag = httpResponse.value(forHTTPHeaderField: "ETag") {
+                self.lastReleaseETag = etag
             }
 
             do {
