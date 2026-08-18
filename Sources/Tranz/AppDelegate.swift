@@ -173,6 +173,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         TranslationHUD.shared.showLanguageChanged(targetLanguage: lang.label)
     }
 
+    @objc private func checkForUpdates() {
+        SettingsNavigationState.shared.selectedTab = .permissions
+        openSettings()
+        UpdateCoordinator.shared.checkForUpdates(isUserInitiated: true)
+    }
+
     @objc private func openSettings() {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController(

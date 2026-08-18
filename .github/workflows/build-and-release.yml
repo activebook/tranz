@@ -93,7 +93,7 @@ jobs:
       - name: Build and Assemble App Bundle
         run: |
           chmod +x scripts/build-app.sh
-          ./scripts/build-app.sh
+          ./scripts/build-app.sh "${{ env.RELEASE_TAG }}"
 
       - name: Validate App Bundle & Signature
         run: |
@@ -103,6 +103,11 @@ jobs:
           echo "Verifying Universal Mach-O architectures..."
           lipo -info "build/Tranz.app/Contents/MacOS/Tranz" | grep -q "arm64"
           lipo -info "build/Tranz.app/Contents/MacOS/Tranz" | grep -q "x86_64"
+          echo "Verifying Bundle Version..."
+          EXPECTED_VERSION="${RELEASE_TAG#v}"
+          ACTUAL_VERSION=$(plutil -extract CFBundleShortVersionString raw "build/Tranz.app/Contents/Info.plist")
+          echo "Expected: '${EXPECTED_VERSION}', Actual: '${ACTUAL_VERSION}'"
+          test "${ACTUAL_VERSION}" = "${EXPECTED_VERSION}"
           codesign --verify --deep --strict --verbose=2 build/Tranz.app
 
       - name: Create Distributable Archive

@@ -19,11 +19,18 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     }
 }
 
+/// Shared navigation coordinator for selecting active settings pane.
+final class SettingsNavigationState: ObservableObject {
+    static let shared = SettingsNavigationState()
+    @Published var selectedTab: SettingsTab = .service
+}
+
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var hotkeyManager: HotkeyManager
+    @ObservedObject private var navState = SettingsNavigationState.shared
+    @ObservedObject private var updateCoordinator = UpdateCoordinator.shared
 
-    @State private var selectedTab: SettingsTab = .service
     @State private var editingEndpointID: UUID?
     @State private var editedURL: String = ""
     @State private var editedModel: String = ""
@@ -45,7 +52,7 @@ struct SettingsView: View {
             // Active Tab Content Pane
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 16) {
-                    switch selectedTab {
+                    switch navState.selectedTab {
                     case .service:
                         servicePane
                     case .languages:
@@ -78,20 +85,20 @@ struct SettingsView: View {
             ForEach(SettingsTab.allCases) { tab in
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.15)) {
-                        selectedTab = tab
+                        navState.selectedTab = tab
                     }
                 }) {
                     HStack(spacing: 6) {
                         Image(systemName: tab.iconName)
                             .font(.system(size: 13, weight: .medium))
                         Text(tab.rawValue)
-                            .font(.system(size: 12, weight: selectedTab == tab ? .semibold : .regular))
+                            .font(.system(size: 12, weight: navState.selectedTab == tab ? .semibold : .regular))
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(TabPillButtonStyle(isSelected: selectedTab == tab))
+                .buttonStyle(TabPillButtonStyle(isSelected: navState.selectedTab == tab))
             }
         }
     }
@@ -581,6 +588,195 @@ struct SettingsView: View {
                             }
                         }
                         .buttonStyle(.bordered)
+                    }
+                }
+            }
+
+            // Software Updates Card
+            settingsCard(title: "Software Updates", icon: "arrow.triangle.2.circlepath.circle.fill") {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 6) {
+                                Text("Current Version")
+                                    .font(.system(size: 12, weight: .medium))
+                                Text("v\(updateCoordinator.currentVersionString)")
+                                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color(nsColor: .controlBackgroundColor))
+                                    .cornerRadius(4)
+                            }
+                            if let lastChecked = updateCoordinator.lastCheckedDate {
+                                Text("Last checked: \(lastChecked.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("Check GitHub Releases for the latest application binary")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+
+                        Spacer()
+
+                        // Action Button depending on state
+                        switch updateCoordinator.state {
+                        case .checking:
+                            ProgressView()
+                                .controlSize(.small)
+                        case .idle, .upToDate:
+                            Button(action: {
+                                updateCoordinator.checkForUpdates(isUserInitiated: true)
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.clockwise")
+                                    Text("Check for Updates")
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        case let .updateAvailable(version, _, _, _, _, _):
+                            Button(action: {
+                                updateCoordinator.downloadAndPrepareUpdate()
+                            }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "arrow.down.circle.fill")
+                                    Text("Update to v\(version)")
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        case .downloading:
+                            EmptyView()
+                        case .verifying:
+                            ProgressView()
+                                .controlSize(.small)
+                        case .readyToRestart:
+                            Button(action: {
+                                updateCoordinator.installAndRelaunch()
+                            }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "arrow.clockwise.circle.fill")
+                                    Text("Restart & Install")
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.green)
+                            .controlSize(.small)
+                        case .failed:
+                            Button(action: {
+                                updateCoordinator.checkForUpdates(isUserInitiated: true)
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.clockwise")
+                                    Text("Retry")
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+
+                    // Progress / Detailed Status Sections
+                    switch updateCoordinator.state {
+                    case .checking:
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Connecting to GitHub Releases API…")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 2)
+
+                    case let .upToDate(version):
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Tranz is up to date (v\(version))")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.green)
+                        }
+                        .padding(.top, 2)
+
+                    case let .updateAvailable(version, releaseNotes, htmlURL, _, _, _):
+                        VStack(alignment: .leading, spacing: 8) {
+                            Divider()
+                            HStack {
+                                Image(systemName: "sparkles")
+                                    .foregroundColor(.accentColor)
+                                Text("New version available: v\(version)")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Link(destination: htmlURL) {
+                                    HStack(spacing: 3) {
+                                        Text("Release Notes")
+                                        Image(systemName: "arrow.up.forward")
+                                    }
+                                    .font(.system(size: 11))
+                                }
+                            }
+                            if !releaseNotes.isEmpty {
+                                Text(releaseNotes)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(3)
+                                    .padding(8)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
+                                    .cornerRadius(6)
+                            }
+                        }
+
+                    case let .downloading(progress, written, total):
+                        VStack(alignment: .leading, spacing: 6) {
+                            Divider()
+                            HStack {
+                                Text("Downloading update…")
+                                    .font(.system(size: 11, weight: .medium))
+                                Spacer()
+                                Text(String(format: "%.1f MB / %.1f MB (%.0f%%)", Double(written) / (1024 * 1024), Double(total) / (1024 * 1024), progress * 100))
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                            }
+                            ProgressView(value: progress, total: 1.0)
+                                .progressViewStyle(.linear)
+                        }
+
+                    case .verifying:
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Verifying SHA-256 cryptographic signature and staging binary…")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 2)
+
+                    case .readyToRestart:
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundColor(.green)
+                            Text("Update downloaded and verified. Click 'Restart & Install' to apply.")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.green)
+                        }
+                        .padding(.top, 2)
+
+                    case let .failed(error):
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .foregroundColor(.red)
+                            Text(error)
+                                .font(.system(size: 11))
+                                .foregroundColor(.red)
+                        }
+                        .padding(.top, 2)
+
+                    case .idle:
+                        EmptyView()
                     }
                 }
             }
