@@ -6,6 +6,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     case languages = "Languages"
     case shortcuts = "Shortcuts"
     case permissions = "System"
+    case debug = "Debug"
 
     var id: String { rawValue }
 
@@ -15,6 +16,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .languages: return "character.bubble"
         case .shortcuts: return "keyboard"
         case .permissions: return "gearshape.2"
+        case .debug: return "ladybug"
         }
     }
 }
@@ -61,12 +63,14 @@ struct SettingsView: View {
                         shortcutsPane
                     case .permissions:
                         systemPane
+                    case .debug:
+                        debugPane
                     }
                 }
                 .padding(20)
             }
         }
-        .frame(width: 560, height: 500)
+        .frame(width: 580, height: 500)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             syncEditingEndpoint()
@@ -793,6 +797,54 @@ struct SettingsView: View {
                 text: accessibilityCoordinator.isTrusted
                     ? "Accessibility access is verified. Tranz is ready to interact with all apps."
                     : "After toggling Tranz in System Settings → Privacy & Security → Accessibility, relaunch the app for permissions to take effect."
+            )
+        }
+    }
+
+    // MARK: - Debug Pane
+
+    private var debugPane: some View {
+        VStack(spacing: 16) {
+            settingsCard(title: "Reasoning & Output Diagnostics", icon: "ladybug.fill") {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Preserve Raw Model Output")
+                                .font(.system(size: 13, weight: .medium))
+                            Text("When enabled, bypasses reasoning tag filters (<think>, <thought>) and outputs unedited raw model responses directly.")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Toggle("", isOn: $settings.rawModelOutputEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+
+                    Divider()
+
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: settings.rawModelOutputEnabled ? "exclamationmark.triangle.fill" : "checkmark.shield.fill")
+                            .foregroundColor(settings.rawModelOutputEnabled ? .orange : .green)
+                            .font(.system(size: 12))
+                            .padding(.top, 1)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(settings.rawModelOutputEnabled
+                                 ? "Raw Mode Active: Internal chain-of-thought tokens from models like DeepSeek-R1 or QwQ will appear directly in target text fields."
+                                 : "Filtering Active (Default): Internal <think> scratchpads are automatically stripped, ensuring only the pure translated result is written.")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+
+            infoBanner(
+                icon: "info.circle",
+                text: "Use Debug mode to inspect model reasoning tokens, troubleshoot custom prompt templates, or diagnose API provider behaviors."
             )
         }
     }

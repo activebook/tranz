@@ -7,11 +7,13 @@ struct TranslatorConfig {
     var model: String
     var targetLanguage: String  // human-readable name, e.g. "English"
     var sourceLanguage: String  // "auto-detect" or a language name
+    var preserveRawOutput: Bool = false
 }
 
 enum TranslatorError: LocalizedError {
     case invalidURL
     case emptyResponse
+    case responseTruncated
     case httpStatus(Int)
 
     var errorDescription: String? {
@@ -20,6 +22,8 @@ enum TranslatorError: LocalizedError {
             return "Invalid endpoint URL."
         case .emptyResponse:
             return "The translation returned empty content."
+        case .responseTruncated:
+            return "Translation cut off: token limit reached."
         case .httpStatus(let code):
             return "The server returned HTTP \(code)."
         }
@@ -54,6 +58,7 @@ final class Translator {
         let body: [String: Any] = [
             "model": config.model,
             "temperature": 0,
+            "max_tokens": 4096,
             "stream": false,
             "messages": [
                 ["role": "system", "content": Self.systemPrompt(targetLanguage: config.targetLanguage)],
@@ -83,18 +88,57 @@ final class Translator {
             }
             do {
                 let decoded = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
-                let content = decoded.choices.first?.message.content?
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                guard let content, !content.isEmpty else {
+                let choice = decoded.choices.first
+                let isTruncated = choice?.finish_reason == "length"
+                let rawContent = choice?.message.content ?? ""
+                let finalContent = config.preserveRawOutput
+                    ? rawContent.trimmingCharacters(in: .whitespacesAndNewlines)
+                    : Self.sanitizeOutput(rawContent)
+
+                if isTruncated && finalContent.isEmpty {
+                    completion(.failure(TranslatorError.responseTruncated))
+                    return
+                }
+
+                guard !finalContent.isEmpty else {
                     completion(.failure(TranslatorError.emptyResponse))
                     return
                 }
-                completion(.success(content))
+
+                if isTruncated {
+                    completion(.failure(TranslatorError.responseTruncated))
+                    return
+                }
+
+                completion(.success(finalContent))
             } catch {
                 completion(.failure(error))
             }
         }
         task.resume()
+    }
+
+    // MARK: - Output Sanitization
+
+    /// Filters internal reasoning tags (e.g. `<think>...</think>`, `<thought>...</thought>`, and escaped variants),
+    /// stripping chain-of-thought metadata and normalizing whitespace to yield strictly the translated text.
+    static func sanitizeOutput(_ raw: String) -> String {
+        // 1. Remove standard XML-like <think>...</think> and <thought>...</thought> blocks (case-insensitive, dotAll)
+        let standardPattern = #"(?is)<think\b[^>]*>.*?</think>|<thought\b[^>]*>.*?</thought>"#
+        var cleaned = raw.replacingOccurrences(of: standardPattern, with: "", options: .regularExpression)
+
+        // 2. Remove escaped variants: \<think\>...\</think\> or &lt;think&gt;...&lt;/think&gt;
+        let escapedPattern = #"(?is)\\<think\b[^>]*\\>.*?\\</think\\>|&lt;think\b[^&]*&gt;.*?&lt;/think&gt;"#
+        cleaned = cleaned.replacingOccurrences(of: escapedPattern, with: "", options: .regularExpression)
+
+        // 3. Strip unclosed leading <think> block if generation terminated abruptly before closing tag
+        if let unclosedRegex = try? NSRegularExpression(pattern: #"^(?is)\s*(?:<think\b[^>]*>|\\<think\b[^>]*\\>|&lt;think\b[^&]*&gt;)(?!.*(?:</think>|\\</think\\>|&lt;/think&gt;)).*$"#),
+           unclosedRegex.firstMatch(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)) != nil {
+            cleaned = ""
+        }
+
+        // 4. Strip extraneous whitespace and newlines between reasoning blocks and output
+        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Prompts (locked §3.4)
@@ -124,6 +168,7 @@ struct ChatCompletionResponse: Decodable {
             let content: String?
         }
         let message: Message
+        let finish_reason: String?
     }
     let choices: [Choice]
 }
