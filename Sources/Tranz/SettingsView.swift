@@ -396,9 +396,50 @@ struct SettingsView: View {
                 }
             }
 
+            // Tone & Style Preferences
+            settingsCard(title: "Tone & Style", icon: "wand.and.stars") {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Output Tone")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Stylistic persona for translation and same-language polishing")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Picker("", selection: $settings.selectedTone) {
+                            ForEach(TranslationTone.allCases) { tone in
+                                Text(tone.displayName).tag(tone)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 190)
+                    }
+
+                    // Persona Description Box
+                    HStack(spacing: 8) {
+                        Image(systemName: settings.selectedTone.iconName)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.accentColor)
+                            .frame(width: 18)
+
+                        Text(settings.selectedTone.description)
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.accentColor.opacity(0.06))
+                    .cornerRadius(8)
+                }
+            }
+
             infoBanner(
                 icon: "globe",
-                text: "Auto-detect analyzes the selected input language and translates it into your chosen Target Language. Press ⌥] or ⌥[ anywhere to cycle target languages on the fly."
+                text: "Auto-detect translates into your chosen Target Language with the selected Tone. If source and target languages match (e.g. English → English), Tranz polishes and adapts the tone in place. Press ⌥] or ⌥[ anywhere to cycle target languages on the fly."
             )
         }
     }
