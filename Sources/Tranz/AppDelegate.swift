@@ -76,6 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var modelsSubmenu: NSMenu?
     private var languagesSubmenu: NSMenu?
+    private var tonesSubmenu: NSMenu?
 
     private func setupMenuBar() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -116,6 +117,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         languagesMenuItem.submenu = langSubMenu
         menu.addItem(languagesMenuItem)
         self.languagesSubmenu = langSubMenu
+
+        // Tone & Style Quick-Switcher Submenu
+        let tonesMenuItem = NSMenuItem(
+            title: "Tone & Style",
+            action: nil,
+            keyEquivalent: ""
+        )
+        let toneSub = NSMenu(title: "Tone & Style")
+        toneSub.delegate = self
+        tonesMenuItem.submenu = toneSub
+        menu.addItem(tonesMenuItem)
+        self.tonesSubmenu = toneSub
 
         // AI Service Quick-Switcher Submenu
         let modelsMenuItem = NSMenuItem(
@@ -216,6 +229,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc private func didSelectToneMenuItem(_ sender: NSMenuItem) {
+        if let raw = sender.representedObject as? String,
+           let tone = TranslationTone(rawValue: raw) {
+            settings.selectedTone = tone
+        }
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
@@ -258,6 +278,23 @@ extension AppDelegate: NSMenuDelegate {
                 item.target = self
                 item.representedObject = language.code
                 item.state = (language.code == activeCode) ? .on : .off
+                submenu.addItem(item)
+            }
+        } else if menu == tonesSubmenu {
+            guard let submenu = tonesSubmenu else { return }
+            submenu.removeAllItems()
+
+            let activeTone = settings.selectedTone
+
+            for tone in TranslationTone.allCases {
+                let item = NSMenuItem(
+                    title: tone.displayName,
+                    action: #selector(didSelectToneMenuItem(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = tone.rawValue
+                item.state = (tone == activeTone) ? .on : .off
                 submenu.addItem(item)
             }
         }

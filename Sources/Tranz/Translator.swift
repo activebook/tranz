@@ -7,6 +7,7 @@ struct TranslatorConfig {
     var model: String
     var targetLanguage: String  // human-readable name, e.g. "English"
     var sourceLanguage: String  // "auto-detect" or a language name
+    var tone: TranslationTone = .default
     var preserveRawOutput: Bool = false
 }
 
@@ -61,7 +62,7 @@ final class Translator {
             "max_tokens": 4096,
             "stream": false,
             "messages": [
-                ["role": "system", "content": Self.systemPrompt(targetLanguage: config.targetLanguage)],
+                ["role": "system", "content": Self.systemPrompt(targetLanguage: config.targetLanguage, tone: config.tone)],
                 ["role": "user", "content": Self.userPrompt(config: config, text: text)]
             ]
         ]
@@ -143,13 +144,22 @@ final class Translator {
 
     // MARK: - Prompts (locked §3.4)
 
-    static func systemPrompt(targetLanguage: String) -> String {
+    static func systemPrompt(targetLanguage: String, tone: TranslationTone = .default) -> String {
+        var prompt = """
+        You are a professional multilingual translator and language assistant.
+        Translate or rewrite the user's text into \(targetLanguage) faithfully and naturally.
         """
-        You are a professional translator and a native speaker of \(targetLanguage).
-        Translate the user's text into \(targetLanguage) faithfully and naturally.
-        Preserve tone, formatting, line breaks, and any code or identifiers.
-        Output ONLY the translated text — no explanations, no quotes, no markdown fences.
+
+        if let directive = tone.promptDirective, !directive.isEmpty {
+            prompt += "\n" + directive
+        }
+
+        prompt += """
+        
+        Preserve formatting, line breaks, and any code or identifiers.
+        Output ONLY the resulting text in \(targetLanguage) — no explanations, no quotes, no markdown fences.
         """
+        return prompt
     }
 
     static func userPrompt(config: TranslatorConfig, text: String) -> String {
